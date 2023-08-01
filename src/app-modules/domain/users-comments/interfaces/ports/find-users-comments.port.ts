@@ -1,3 +1,4 @@
+import { Either } from '@sweet-monads/either';
 import { ArticleId } from '../../../articles/article.entity';
 import { UsersComment } from '../../users-comment.entity';
 
@@ -6,5 +7,5 @@ export interface FindUsersCommentsPort {
     articleId: ArticleId,
     page: number,
     limit: number,
-  ): Promise<UsersComment[]>;
+  ): Promise<Either<Error, UsersComment[]>>;
 }

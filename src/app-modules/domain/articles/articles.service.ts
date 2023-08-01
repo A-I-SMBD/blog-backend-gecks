@@ -1,3 +1,4 @@
+import { Either, right } from '@sweet-monads/either';
 import { UserId } from '../users/user.entity';
 import { Article, ArticleId } from './article.entity';
 import { CreateArticlePort } from './interfaces/ports/create-article.port';
@@ -6,6 +7,7 @@ import { UpdateArticlePort } from './interfaces/ports/update-article.port';
 import { CreateArticleUsecase } from './interfaces/usecases/create-article.usecase';
 import { FindArticlesUsecase } from './interfaces/usecases/find-articles.usecase';
 import { UpdateArticleUsecase } from './interfaces/usecases/update-article.usecase';
+import { left } from '@sweet-monads/either';
 
 export const ArticlesServiceSymbol = Symbol('ArticlesService');
 
@@ -18,15 +20,15 @@ export class ArticlesService
     private readonly _updateArticlePort: UpdateArticlePort,
   ) {}
 
-  create(article: Article): Promise<Article> {
+  create(article: Article): Promise<Either<Error, Article>> {
     return this._createArticlePort.create(article);
   }
 
-  find(id: ArticleId): Promise<Article> {
+  find(id: ArticleId): Promise<Either<Error, Article>> {
     return this._findArticlePort.find(id);
   }
 
-  findMany(page: number, limit: number): Promise<Article[]> {
+  findMany(page: number, limit: number): Promise<Either<Error, Article[]>> {
     return this._findArticlePort.findMany(page, limit);
   }
 
@@ -34,18 +36,30 @@ export class ArticlesService
     authorId: UserId,
     page: number,
     limit: number,
-  ): Promise<Article[]> {
+  ): Promise<Either<Error, Article[]>> {
     return this._findArticlePort.findManyByAuthorId(authorId, page, limit);
   }
 
-  update(article: Article): Promise<Article> {
+  update(article: Article): Promise<Either<Error, Article>> {
     return this._updateArticlePort.update(article);
   }
 
-  async publish(id: ArticleId): Promise<void> {
-    const article: Article = await this.find(id);
+  async publish(id: ArticleId): Promise<Either<Error, undefined>> {
+    const findEither: Either<Error, Article> = await this.find(id);
+
+    if (findEither.isLeft()) {
+      return left(findEither.value);
+    }
+
+    const article: Article = findEither.value;
     article.isPublished = true;
 
-    await this.update(article);
+    const updateEither: Either<Error, Article> = await this.update(article);
+
+    if (updateEither.isLeft()) {
+      return left(updateEither.value);
+    }
+
+    return right(undefined);
   }
 }

@@ -6,6 +6,7 @@ import { FindUserUsecase } from './interfaces/usecases/find-user.usecase';
 import { UpdateUserUsecase } from './interfaces/usecases/update-user.usecase';
 import { UpdateUserPort } from './interfaces/ports/update-user.port';
 import { UsernameIsTaken } from './exceptions/username-is-taken.exception';
+import { Either, left } from '@sweet-monads/either';
 
 export const UsersServiceSymbol = Symbol('UsersService');
 
@@ -17,59 +18,32 @@ export class UsersService
     private readonly _findUserPort: FindUserPort,
     private readonly _updateUserPort: UpdateUserPort,
   ) {}
-  async create(user: User): Promise<string> {
-    const existsUser: User | Error | null = await this.findByUsername(
-      user.username,
-    );
+  async create(user: User): Promise<Either<Error, UserId>> {
+    const findByUsernameEither: Either<Error, User | null> =
+      await this.findByUsername(user.username);
 
-    if (existsUser instanceof Error) {
-      throw existsUser;
+    if (findByUsernameEither.isLeft()) {
+      return left(findByUsernameEither.value);
     }
+
+    const existsUser: User | null = findByUsernameEither.value;
 
     if (existsUser) {
-      throw UsernameIsTaken.init();
+      return left(UsernameIsTaken.init());
     }
 
-    const createdUserId: UserId | Error = await this._createUserPort.create(
-      user,
-    );
-
-    if (createdUserId instanceof Error) {
-      throw createdUserId;
-    }
-
-    return createdUserId;
+    return this._createUserPort.create(user);
   }
 
-  async find(id: string): Promise<User | null> {
-    const user: User | Error | null = await this._findUserPort.find(id);
-
-    if (user instanceof Error) {
-      throw user;
-    }
-
-    return user;
+  async find(id: string): Promise<Either<Error, User | null>> {
+    return this._findUserPort.find(id);
   }
 
-  async findByUsername(username: string): Promise<User | null> {
-    const user: User | Error | null = await this._findUserPort.findByUsername(
-      username,
-    );
-
-    if (user instanceof Error) {
-      throw user;
-    }
-
-    return user;
+  async findByUsername(username: string): Promise<Either<Error, User | null>> {
+    return this._findUserPort.findByUsername(username);
   }
 
-  async update(user: User): Promise<User> {
-    const updatedUser: User | Error = await this._updateUserPort.update(user);
-
-    if (updatedUser instanceof Error) {
-      throw updatedUser;
-    }
-
-    return updatedUser;
+  async update(user: User): Promise<Either<Error, User>> {
+    return this._updateUserPort.update(user);
   }
 }
